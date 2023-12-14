@@ -140,32 +140,49 @@ const val day3 =
 .........&........873........=...........*...........*....292..-..............................*......................597*923................
 ..............................871.......497..........159........452.................900...116..450...878...........................302...574"""
 
-
 val puzzle = day3.lines()
-
-// new type-inferrer sucks
 val lines: Int = puzzle.size
 val rows = puzzle.first().length
 
-// (row, line)
-fun surrounding(row: Int, line: Int, len: Int): Boolean {
-    val horizontal = (row - 1..row + len).filter { it in 0..<rows }
-    val vertical = (line - 1..line + 1).filter { it in 0..<lines }
-    return horizontal.any { x ->
-        vertical.any { y ->
-            puzzle[y][x].run { !isDigit() && this != '.' }
+
+fun surrounding(x: IntRange, y: Int): Boolean {
+    val horizontal = (x.first - 1..x.last + 1).filter { it in 0..<rows }
+    val vertical = (y - 1..y + 1).filter { it in 0..<lines }
+    return horizontal.any { x1 ->
+        vertical.any { y1 ->
+            puzzle[y1][x1].run { !isDigit() && this != '.' }
         }
+    }
+}
+
+// (range, y, number)
+val number = puzzle.withIndex().flatMap { (y, line) ->
+    """\d+""".toRegex().findAll(line).map { matchResult ->
+        val number = matchResult.value.toInt()
+        val range = matchResult.groups.first()!!.range
+        Triple(range, y, number)
+    }
+}
+
+// (x, y)
+val asterisk = puzzle.withIndex().flatMap { (y, value) ->
+    """\*""".toRegex().findAll(value).map { matchResult ->
+        matchResult.groups.first()!!.range.first to y
     }
 }
 
 fun main() {
     // part one
-    val sum = puzzle.withIndex().sumOf { (index, value) ->
-        """\d+""".toRegex().findAll(value).sumOf { matchResult ->
-            val number = matchResult.value.toInt()
-            val range = matchResult.groups.first()!!.range
-            if (surrounding(range.first, index, range.last + 1 - range.first)) number else 0
-        }
+    val sum = number.sumOf { (range, y, number) -> if (surrounding(range, y)) number else 0 }
+    println(sum) // 551094
+
+    // part two
+    val adjacentsSum = asterisk.sumOf { (x, y) ->
+        val box =
+            (x - 1..x + 1).flatMap { horizontal -> (y - 1..y + 1).map { vertical -> horizontal to vertical } }.toSet()
+        val adjacents = number.filter { (range, y, _) -> range.map { it to y }.intersect(box).isNotEmpty() }
+            .map(Triple<IntRange, Int, Int>::third)
+        if (adjacents.size == 2) adjacents.first() * adjacents.last() else 0
     }
-    println(sum)
+    println(adjacentsSum)
 }
